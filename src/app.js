@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import identityRouter from "./routes/identity.route.js";
 
 const app = express();
 
@@ -10,11 +11,6 @@ app.get("/", (req, res) => {
   res.send("Hello World!");
 });
 
-app.get("/identity", (req, res) => {
-  const { email, phoneNumber } = req.body;
-  res.send(
-    `Identity received: Email - ${email}, Phone Number - ${phoneNumber}`
-  );
-});
+app.use("/identify", identityRouter);
 
 export default app;
