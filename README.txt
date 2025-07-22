@@ -1,3 +1,5 @@
 
-    1. basic react setup done
-    2. prisma setup: --
+    Live Link: 
+    
+    Neon DB use with Prisma
+    Neon DB goes to sleep on idle, if 1st request fails then kindly wait for 60sec and try again
