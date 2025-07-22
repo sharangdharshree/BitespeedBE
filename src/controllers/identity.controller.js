@@ -2,10 +2,22 @@ import { PrismaClient } from "../generated/prisma/index.js";
 
 const prisma = new PrismaClient();
 
+function removeDuplicate(response) {
+  response.contact.emails = [...new Set(response.contact.emails)];
+
+  response.contact.phoneNumbers = [...new Set(response.contact.phoneNumbers)];
+  response.contact.secondaryContactIds = [
+    ...new Set(response.contact.secondaryContactIds),
+  ];
+  return response;
+}
+
 const identityController = async (req, res) => {
   try {
-    const email = req.body.email || null;
-    const phoneNumber = req.body.phoneNumber || null;
+    const email = req.body.email ? String(req.body.email) : null;
+    const phoneNumber = req.body.phoneNumber
+      ? String(req.body.phoneNumber)
+      : null;
     var response = {
       contact: {
         primaryContactId: 0,
@@ -42,7 +54,7 @@ const identityController = async (req, res) => {
       newContact.phoneNumber
         ? response.contact.phoneNumbers.push(newContact.phoneNumber)
         : null;
-      return res.status(201).json(response);
+      return res.status(201).json(removeDuplicate(response));
     }
 
     if (existingContacts.length > 0) {
@@ -60,27 +72,19 @@ const identityController = async (req, res) => {
           for (let i = 0; i < existingContacts.length; i++) {
             if (existingContacts[i].linkPrecedence == "PRIMARY") {
               response.contact.primaryContactId = existingContacts[i].id;
-              existingContacts.email
-                ? response.contact.emails.push(existingContacts[i].email)
-                : null;
-              existingContacts.phoneNumber
-                ? response.contact.phoneNumbers.push(
-                    existingContacts[i].phoneNumber
-                  )
-                : null;
             } else {
               response.contact.secondaryContactIds.push(existingContacts[i].id);
-              existingContacts.email
-                ? response.contact.emails.push(existingContacts[i].email)
-                : null;
-              existingContacts.phoneNumber
-                ? response.contact.phoneNumbers.push(
-                    existingContacts[i].phoneNumber
-                  )
-                : null;
             }
+            existingContacts[i].email
+              ? response.contact.emails.push(existingContacts[i].email)
+              : null;
+            existingContacts[i].phoneNumber
+              ? response.contact.phoneNumbers.push(
+                  existingContacts[i].phoneNumber
+                )
+              : null;
           }
-          return res.status(201).json(response);
+          return res.status(201).json(removeDuplicate(response));
         }
 
         // if both details exists but in different contact: check for its precedence, update accordingly then compile data and send response
@@ -91,10 +95,12 @@ const identityController = async (req, res) => {
         ) {
           // sorted the contact array according to its creation date
           existingContacts.sort((a, b) => a.createdAt - b.createdAt);
-          // checked and set precedence, compiled data and send response
-          for (let i = 0; i < existingContacts; i++) {
-            if (i === 0) {
+
+          // check and set precedence, compiled data and send response
+          for (let i = 0; i < existingContacts.length; i++) {
+            if (i == 0) {
               response.contact.primaryContactId = existingContacts[i].id;
+
               if (existingContacts[i].linkPrecedence !== "PRIMARY") {
                 await prisma.contact.update({
                   where: {
@@ -127,7 +133,7 @@ const identityController = async (req, res) => {
                 )
               : null;
           }
-          return res.status(201).json(response);
+          return res.status(201).json(removeDuplicate(response));
         }
 
         // either email or phone exists in db, create the other one, compile data and send response
@@ -138,6 +144,10 @@ const identityController = async (req, res) => {
               email: email,
               phoneNumber: phoneNumber,
               linkPrecedence: "SECONDARY",
+              linkedId:
+                indexEmail === -1
+                  ? existingContacts[indexNumber].id
+                  : existingContacts[indexEmail].id,
             },
           });
           indexNumber === -1
@@ -162,7 +172,7 @@ const identityController = async (req, res) => {
                 )
               : null;
           }
-          return res.status(201).json(response);
+          return res.status(201).json(removeDuplicate(response));
         }
       }
       // if either email or phone only is sent and there is a match
@@ -182,7 +192,7 @@ const identityController = async (req, res) => {
               )
             : null;
         }
-        return res.status(201).json(response);
+        return res.status(201).json(removeDuplicate(response));
       }
     }
   } catch (error) {
